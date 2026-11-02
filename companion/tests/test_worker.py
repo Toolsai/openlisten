@@ -37,8 +37,11 @@ def test_cancel_removes_record_without_worker_resurrecting_it(tmp_path, monkeypa
 
     async def scenario():
         task = asyncio.create_task(library.convert(item))
-        while library.process is None:
+        for _ in range(500):
+            if library.process is not None:
+                break
             await asyncio.sleep(0.01)
+        assert library.process is not None
         library.delete(item["id"])
         await asyncio.wait_for(task, 5)
 
@@ -75,7 +78,7 @@ def test_cancel_during_process_creation_still_stops_child(tmp_path, monkeypatch)
 
         monkeypatch.setattr("openlisten.library.asyncio.create_subprocess_exec", delayed)
         task = asyncio.create_task(library.convert(item))
-        await starting.wait()
+        await asyncio.wait_for(starting.wait(), 5)
         library.delete(item["id"])
         release.set()
         await asyncio.wait_for(task, 5)
@@ -83,4 +86,17 @@ def test_cancel_during_process_creation_still_stops_child(tmp_path, monkeypatch)
     asyncio.run(scenario())
     assert library.get(item["id"]) is None
     assert not library.audio_path(item["id"]).parent.exists()
+    library.db.close()
+
+
+def test_interrupted_output_cannot_be_mistaken_for_completed_audio(tmp_path, monkeypatch):
+    monkeypatch.setattr("openlisten.library.ytdlp_command", lambda: [sys.executable, "-c", "pass"])
+    library = Library(tmp_path)
+    item = library.add([ENTRY])[0]
+    target = library.audio_path(item["id"])
+    target.parent.mkdir()
+    target.write_bytes(b"unfinished audio from an interrupted process")
+    asyncio.run(library.convert(item))
+    assert library.get(item["id"])["state"] == "failed"
+    assert not target.exists()
     library.db.close()

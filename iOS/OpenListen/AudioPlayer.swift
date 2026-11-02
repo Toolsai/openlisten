@@ -25,10 +25,12 @@ final class AudioPlayer: ObservableObject {
         statusObserver = player.observe(\.timeControlStatus, options: [.new]) { [weak self] player, _ in
             Task { @MainActor in self?.isPlaying = player.timeControlStatus == .playing; self?.updateNowPlaying() }
         }
-        timeObserver = player.addPeriodicTimeObserver(forInterval: CMTime(seconds: 0.5, preferredTimescale: 600), queue: .main) { [weak self] time in
+        timeObserver = player.addPeriodicTimeObserver(forInterval: CMTime(seconds: 0.5, preferredTimescale: 600), queue: .main) { [weak self] _ in
             Task { @MainActor in
-                guard let self, time.seconds.isFinite else { return }
-                self.elapsed = max(0, time.seconds)
+                guard let self else { return }
+                let seconds = self.player.currentTime().seconds
+                guard seconds.isFinite else { return }
+                self.elapsed = max(0, seconds)
                 if let seconds = self.player.currentItem?.duration.seconds, seconds.isFinite, seconds > 0 { self.duration = seconds }
                 if abs(self.elapsed - self.savedAt) >= 5 { self.savePosition() }
                 self.updateNowPlaying()
@@ -53,8 +55,11 @@ final class AudioPlayer: ObservableObject {
                 Task { @MainActor in self?.pause() }
             }
         })
-        observers.append(NotificationCenter.default.addObserver(forName: .AVPlayerItemFailedToPlayToEndTime, object: nil, queue: .main) { [weak self] _ in
-            Task { @MainActor in self?.pause(); self?.error = "音檔無法繼續播放，請重新下載。" }
+        observers.append(NotificationCenter.default.addObserver(forName: .AVPlayerItemFailedToPlayToEndTime, object: nil, queue: .main) { [weak self] notification in
+            Task { @MainActor in
+                guard let self, (notification.object as? AVPlayerItem) === self.player.currentItem else { return }
+                self.pause(); self.error = "音檔無法繼續播放，請重新下載。"
+            }
         })
         configureCommands()
     }
@@ -75,8 +80,8 @@ final class AudioPlayer: ObservableObject {
         if let endObserver { NotificationCenter.default.removeObserver(endObserver) }
         endObserver = NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime, object: asset, queue: .main) { [weak self] _ in
             Task { @MainActor in
-                guard let self else { return }
-                self.elapsed = 0; self.savePosition(); self.next()
+                guard let self, self.currentID == item.id else { return }
+                self.seek(0); self.next()
             }
         }
         if elapsed > 0 { player.seek(to: CMTime(seconds: elapsed, preferredTimescale: 600)) }

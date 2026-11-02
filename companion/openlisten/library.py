@@ -70,10 +70,11 @@ class Library:
     async def convert(self, item: dict):
         identifier = item["id"]
         target = self.audio_path(identifier)
-        target.parent.mkdir(exist_ok=True)
         self.active_id = identifier
         self.update(identifier, state="processing", error=None)
         try:
+            target.parent.mkdir(exist_ok=True)
+            target.unlink(missing_ok=True)
             if shutil.disk_usage(self.directory).free < 1024 ** 3:
                 raise ValueError("電腦剩餘空間不足 1 GB，請先清理空間。")
             self.process = await asyncio.create_subprocess_exec(
