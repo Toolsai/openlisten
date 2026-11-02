@@ -1,0 +1,26 @@
+[project]
+name = "openlisten-companion"
+version = "0.1.0"
+description = "A self-hosted audio import companion for OpenListen on iPhone"
+requires-python = ">=3.11"
+license = "MIT"
+dependencies = ["fastapi>=0.115,<1", "uvicorn>=0.30,<1", "yt-dlp[default]>=2025.11.12"]
+
+[project.scripts]
+openlisten = "openlisten.__main__:main"
+
+[dependency-groups]
+dev = ["pytest>=8,<10", "httpx>=0.27,<1", "ruff>=0.11,<1"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["openlisten"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
