@@ -8,6 +8,7 @@ concurrency:
 jobs:
   companion:
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -20,6 +21,7 @@ jobs:
       - run: uv run --project companion pytest companion/tests -q
   ios:
     runs-on: macos-15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
       - run: swift test --package-path Core
@@ -28,6 +30,7 @@ jobs:
       - name: Build iPhone app and widget
         run: xcodebuild -project OpenListen.xcodeproj -scheme OpenListen -sdk iphonesimulator -configuration Debug -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
       - name: Launch in iPhone simulator
+        timeout-minutes: 10
         run: |
           DEVICE_ID=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; print(next(d["udid"] for devices in json.load(sys.stdin)["devices"].values() for d in devices if d["name"].startswith("iPhone")))')
           xcrun simctl boot "$DEVICE_ID"

@@ -116,7 +116,8 @@ final class AudioDownloads: NSObject, URLSessionDownloadDelegate {
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
         guard let text = downloadTask.taskDescription, let id = UUID(uuidString: text) else { return }
         do {
-            guard (downloadTask.response as? HTTPURLResponse)?.statusCode == 200 else {
+            guard let status = (downloadTask.response as? HTTPURLResponse)?.statusCode,
+                  status == 200 || status == 206 else {
                 throw AppFailure.message("音檔下載失敗，請重新配對或稍後再試。")
             }
             let destination = LocalFiles.audio(id)
